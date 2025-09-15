@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remarkable Paper Pro Move Daily Calendar Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Daily Calendar Generator for Remarkable Paper Pro Move</h1>
+
+        <form id="calendar-form">
+            <div class="form-group">
+                <label for="ical_urls">Your iCal URLs (comma-separated if multiple):</label>
+                <textarea id="ical_urls" name="ical_urls" rows="3" placeholder="https://calendar.google.com/calendar/ical/..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="start_date">Start Date (leave blank for next Monday):</label>
+                <input type="date" id="start_date" name="start_date">
+            </div>
+
+            <div class="form-group">
+                <label for="end_date">End Date (leave blank for 7 days from start):</label>
+                <input type="date" id="end_date" name="end_date">
+            </div>
+
+
+            <div class="form-group time-range-group">
+                <div class="time-input">
+                    <label for="start_hour">Start Hour:</label>
+                    <select id="start_hour" name="start_hour">
+                        <option value="5">5 AM</option>
+                        <option value="6" selected>6 AM</option>
+                        <option value="7">7 AM</option>
+                        <option value="8">8 AM</option>
+                        <option value="9">9 AM</option>
+                        <option value="10">10 AM</option>
+                    </select>
+                </div>
+                <div class="time-input">
+                    <label for="end_hour">End Hour:</label>
+                    <select id="end_hour" name="end_hour">
+                        <option value="14">2 PM</option>
+                        <option value="15">3 PM</option>
+                        <option value="16">4 PM</option>
+                        <option value="17" selected>5 PM</option>
+                        <option value="18">6 PM</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="show_todos" name="show_todos" checked>
+                    Show To-Do boxes and lines
+                </label>
+            </div>
+
+            <button type="submit" id="generate-btn">Generate PDF</button>
+        </form>
+
+        <div id="status" class="status hidden"></div>
+    </div>
+
+    <script>
+        // Update end hour options based on start hour selection
+        function updateEndHourOptions() {
+            const startHour = parseInt(document.getElementById('start_hour').value);
+            const endHourSelect = document.getElementById('end_hour');
+            const currentEndHour = parseInt(endHourSelect.value);
+
+            // Clear existing options
+            endHourSelect.innerHTML = '';
+
+            // Generate options for 8-12 hours duration
+            const minEndHour = startHour + 8;  // Minimum 8 hours
+            const maxEndHour = Math.min(startHour + 12, 23);  // Maximum 12 hours or 11 PM
+
+            let selectedValue = null;
+            for (let hour = minEndHour; hour <= maxEndHour; hour++) {
+                const option = document.createElement('option');
+                option.value = hour;
+
+                if (hour === 12) {
+                    option.textContent = '12 PM';
+                } else if (hour > 12) {
+                    option.textContent = (hour - 12) + ' PM';
+                } else {
+                    option.textContent = hour + ' AM';
+                }
+
+                // Try to maintain the current selection if valid
+                if (hour === currentEndHour && hour >= minEndHour && hour <= maxEndHour) {
+                    option.selected = true;
+                    selectedValue = hour;
+                } else if (!selectedValue && hour === Math.min(startHour + 11, maxEndHour)) {
+                    // Default to 11 hours or max available
+                    option.selected = true;
+                    selectedValue = hour;
+                }
+
+                endHourSelect.appendChild(option);
+            }
+        }
+
+        // Update end hour options when start hour changes
+        document.getElementById('start_hour').addEventListener('change', updateEndHourOptions);
+
+        // Initialize on page load
+        updateEndHourOptions();
+
+        document.getElementById('calendar-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const statusDiv = document.getElementById('status');
+            const generateBtn = document.getElementById('generate-btn');
+
+            // Show loading state
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            statusDiv.className = 'status';
+            statusDiv.textContent = 'Fetching calendar data and generating PDF...';
+
+            try {
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    // If successful, download the PDF directly
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    // Extract filename from Content-Disposition header or use dates from form
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'calendar.pdf';
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    } else {
+                        // Fallback: generate filename from form data
+                        const startDate = new Date(formData.get('start_date'));
+                        const endDate = new Date(formData.get('end_date'));
+                        if (startDate.toDateString() === endDate.toDateString()) {
+                            filename = `${startDate.getMonth() + 1}-${startDate.getDate()}.pdf`;
+                        } else {
+                            filename = `${startDate.getMonth() + 1}-${startDate.getDate()}-to-${endDate.getMonth() + 1}-${endDate.getDate()}.pdf`;
+                        }
+                    }
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = 'PDF generated and downloaded successfully!';
+                } else {
+                    // Handle error response
+                    const result = await response.json();
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'Error: ' + result.error;
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'Error: ' + error.message;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Generate PDF';
+            }
+        });
+    </script>
+</body>
+</html>
