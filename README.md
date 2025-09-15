@@ -22,7 +22,7 @@ Generate customizable PDF daily planners optimized for the reMarkable Paper Pro 
 ## 🚀 Quick Start
 
 ### Option 1: Use the Hosted Version
-Visit our hosted app at [your-render-url] - no setup required!
+Visit the hosted app at [https://remarkable-daily-planner.onrender.com/](https://remarkable-daily-planner.onrender.com/) - no setup required!
 
 ### Option 2: Run Locally
 
