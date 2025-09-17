@@ -2,6 +2,11 @@
 
 Generate customizable PDF daily planners optimized for the reMarkable Paper Pro Move. Import events from Google Calendar, Outlook, or any iCal feed to create simple daily schedules.
 
+![Photo of reMarkable Paper Pro Move with the Daily Planner
+](https://vikboyechko.com/assets/images/blog/remarkable-move-daily-planner-calendar-events.jpg)
+
+[Full blog post with more details here.](https://vikboyechko.com/blog/remarkable-move-daily-planner-generator-with-calendar-events)
+
 ## 🔒 Privacy First
 
 **Your data stays private:**
@@ -25,6 +30,8 @@ Generate customizable PDF daily planners optimized for the reMarkable Paper Pro 
 Visit the hosted app at [https://remarkable-daily-planner.onrender.com/](https://remarkable-daily-planner.onrender.com/) - no setup required!
 
 ### Option 2: Run Locally
+
+If you prefer to run the app on your own machine, follow these steps:
 
 1. **Clone the repository:**
    ```bash

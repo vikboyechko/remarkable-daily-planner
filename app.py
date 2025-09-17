@@ -6,6 +6,10 @@ from pdf_generator import PDFGenerator
 
 app = Flask(__name__)
 
+@app.route('/health')
+def health():
+    return 'OK', 200
+
 @app.route('/')
 def index():
     return render_template('index.html')
