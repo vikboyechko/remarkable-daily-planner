@@ -27,7 +27,7 @@ Generate customizable PDF daily planners optimized for the reMarkable Paper Pro 
 ## 🚀 Quick Start
 
 ### Option 1: Use the Hosted Version
-Visit the hosted app at [https://remarkable-daily-planner.onrender.com/](https://remarkable-daily-planner.onrender.com/) - no setup required!
+Visit the hosted app at [https://remarkable.pythonanywhere.com/](https://remarkable.pythonanywhere.com/) - no setup required!
 
 ### Option 2: Run Locally
 
@@ -92,14 +92,6 @@ Most calendar applications support iCal export. Look for:
 - **Time Range**: Choose 8-12 hour ranges (e.g., 6 AM - 5 PM)
 - **Date Range**: Generate single days or multi-day planners
 - **To-Do Section**: Toggle on/off based on your preference
-
-## 🛠️ Technical Details
-
-- **Frontend**: HTML, CSS, vanilla JavaScript
-- **Backend**: Python Flask
-- **PDF Generation**: ReportLab
-- **Calendar Parsing**: icalendar library with full RRULE support
-- **Deployment**: Ready for Render, Heroku, or any Python hosting
 
 ## 📱 Device Compatibility
 
