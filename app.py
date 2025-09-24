@@ -21,18 +21,11 @@ def generate_calendar():
         end_hour = int(request.form.get('end_hour', 17))
         show_todos = request.form.get('show_todos') == 'on'  # Checkbox sends 'on' when checked
 
-        # auto-detect computer timezone
-        from datetime import datetime as dt
-        # get the local timezone name in a more reliable way
-        local_tz = dt.now().astimezone().tzinfo.tzname(None)
-        # convert common abbreviations to full timezone names
-        timezone_map = {
-            'EST': 'America/New_York', 'EDT': 'America/New_York',
-            'CST': 'America/Chicago', 'CDT': 'America/Chicago',
-            'MST': 'America/Denver', 'MDT': 'America/Denver',
-            'PST': 'America/Los_Angeles', 'PDT': 'America/Los_Angeles'
-        }
-        timezone = timezone_map.get(local_tz, 'America/Chicago')  # Default to Chicago if unknown
+        # Get client timezone from browser
+        timezone = request.form.get('timezone')
+
+        if not timezone:
+            return jsonify({'error': 'Timezone information is required. Please ensure JavaScript is enabled.'}), 400
 
         # validate inputs
         if not ical_urls:

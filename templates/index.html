@@ -115,6 +115,11 @@
             e.preventDefault();
 
             const formData = new FormData(e.target);
+
+            // Add browser timezone to the form data
+            const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            formData.append('timezone', browserTimezone);
+
             const statusDiv = document.getElementById('status');
             const generateBtn = document.getElementById('generate-btn');
 
