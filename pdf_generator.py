@@ -55,11 +55,17 @@ class PDFGenerator:
         c.drawString(self.page_width - self.margin - text_width, y_pos, date_text)
         y_pos -= 12
 
+        # Calculate total rows (time slots + all-day if present)
+        time_slots = (end_hour + 1) - start_hour
+        total_rows = time_slots + (1 if len([e for e in events if isinstance(e['start'], date) and not isinstance(e['start'], datetime)]) > 0 else 0)
+
         # Draw faint horizontal line under header (very close to header)
         c.setStrokeColor(lightgrey)
         c.setLineWidth(0.5)
         c.line(self.margin, y_pos, self.page_width - self.margin, y_pos)
         c.setStrokeColor(black)  # Reset
+
+        # Consistent header spacing for predictable layout
         y_pos -= 8.5
 
         # Calculate dimensions with more space per hour
@@ -74,6 +80,7 @@ class PDFGenerator:
 
         # Check for all-day events (those with date objects, not datetime)
         all_day_events = [e for e in events if isinstance(e['start'], date) and not isinstance(e['start'], datetime)]
+        has_all_day = len(all_day_events) > 0
 
         # Draw all-day slot if there are all-day events
         if all_day_events:
@@ -95,8 +102,8 @@ class PDFGenerator:
             # Update schedule bottom position
             schedule_bottom = y_pos
 
-        # Draw hourly time slots (start_hour through end_hour)
-        for hour in range(start_hour, end_hour):
+        # Draw hourly time slots (start_hour through end_hour, inclusive)
+        for hour in range(start_hour, end_hour + 1):
             # Format time (without :00)
             if hour < 12:
                 time_str = f"{hour} AM" if hour > 0 else "12 AM"
@@ -125,17 +132,23 @@ class PDFGenerator:
             # Update schedule bottom position
             schedule_bottom = y_pos
 
-            # Stop if we're getting close to bottom (leave room for to-do list)
-            if y_pos < self.margin + 100:  # Reduced space to fit more hours
-                break
+            # Keep consistent hour height - let to-do section handle space constraints
 
         # Draw events (pass whether we have all-day events to adjust positioning)
-        has_all_day = len(all_day_events) > 0
         self._draw_events(c, current_date, events, event_column_start, event_column_width, hour_height, start_hour, end_hour, has_all_day)
 
         # Draw to-do list section at the bottom (only if show_todos is True)
         if show_todos:
-            self._draw_todo_section(c, schedule_bottom)
+            # Smart to-do reduction based on space constraints
+            todo_count = 3 if has_all_day else 4
+
+            # Compress to-do height for layouts with 11+ time slots
+            if time_slots >= 11:
+                todo_height_multiplier = 0.75  # 75% of normal height
+            else:
+                todo_height_multiplier = 1.0  # Normal height
+
+            self._draw_todo_section(c, schedule_bottom, todo_count, todo_height_multiplier)
 
     def _draw_events(self, c, current_date, events, x_start, width, hour_height, start_hour=6, end_hour=17, has_all_day=False):
         """Draw events as rounded boxes positioned by time"""
@@ -156,11 +169,29 @@ class PDFGenerator:
             if not isinstance(event['start'], datetime):
                 continue  # Skip all-day events
 
-            # Skip events outside our time range
-            if event['start'].hour < start_hour or event['start'].hour >= end_hour:
+            # Check if event overlaps with our displayed time window
+            # Window is from start_hour to end_hour + 1 (e.g., if end_hour=15, window is 6am-4pm)
+            window_end = end_hour + 1  # End of the last hour slot
+
+            # Event must start before the end of our window
+            if event['start'].hour >= window_end:
                 continue
 
-            event_hour = event['start'].hour
+            # Event must end after the start of our window (or have no end time)
+            if event['end'] and isinstance(event['end'], datetime):
+                # Check if event ends before our window starts
+                event_end_hour = event['end'].hour
+                if event['end'].minute > 0:
+                    event_end_hour += 1  # Round up if there are minutes
+                if event_end_hour <= start_hour:
+                    continue
+            # If no end time, include it if it starts within or before our window
+
+            # Use the event's start hour for grouping (capped at end_hour for events starting after)
+            event_hour = min(event['start'].hour, end_hour)
+            if event_hour < start_hour:
+                event_hour = start_hour  # Group early events with the first hour
+
             if event_hour not in time_slots:
                 time_slots[event_hour] = []
             time_slots[event_hour].append(event)
@@ -176,8 +207,18 @@ class PDFGenerator:
                 # Calculate duration and height
                 duration_minutes = 60  # Default 1 hour
                 if event['end'] and isinstance(event['end'], datetime):
+                    # Calculate actual duration
                     delta = event['end'] - event['start']
                     duration_minutes = delta.total_seconds() / 60
+
+                    # Clip at end_hour + 1:15 (15 minutes past the end of the last hour slot)
+                    # e.g., if end_hour is 15 (3pm), we show the 3-4pm slot, clip at 4:15pm
+                    from datetime import time, timedelta
+                    clip_time = event['start'].replace(hour=end_hour + 1, minute=15, second=0, microsecond=0)
+                    if event['end'] > clip_time:
+                        # Event extends past clip time, cut it off
+                        minutes_to_clip = (clip_time - event['start']).total_seconds() / 60
+                        duration_minutes = min(duration_minutes, minutes_to_clip)
 
                 # Round to 15-minute increments
                 duration_minutes = max(15, round(duration_minutes / 15) * 15)
@@ -322,22 +363,22 @@ class PDFGenerator:
         c.setFillColor(black)
         c.setStrokeColor(black)
 
-    def _draw_todo_section(self, c, y_start):
+    def _draw_todo_section(self, c, y_start, num_todos=4, height_multiplier=1.0):
         """Draw to-do list section with checkboxes"""
         y_pos = y_start - 14
 
-        # No divider line - we already have one from 9 PM hour
+        # No divider line - we already have one from the last hour
 
         # Draw checkbox lines with better spacing
         c.setFont("Helvetica", 9)
         checkbox_size = 10  # Slightly larger checkboxes
 
-        # Calculate available space and distribute 4 to-dos evenly
-        num_lines = 4
-        available_space = y_pos - self.margin + 22  # Leave minimal bottom margin to use full space
-        line_height = available_space / num_lines  # Divide space evenly among 4 items
+        # Calculate available space and distribute to-dos evenly
+        base_available_space = y_pos - self.margin + 22  # Leave minimal bottom margin to use full space
+        available_space = base_available_space * height_multiplier  # Apply compression if needed
+        line_height = available_space / num_todos  # Divide space evenly among to-do items
 
-        for i in range(num_lines):
+        for i in range(num_todos):
             # Draw checkbox
             c.setLineWidth(0.5)
             c.setStrokeColor(black)
