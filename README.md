@@ -7,6 +7,17 @@ Generate customizable PDF daily planners optimized for the reMarkable Paper Pro 
 
 [Full blog post with more details here.](https://vikboyechko.com/blog/remarkable-move-daily-planner-generator-with-calendar-events)
 
+<br>
+
+## Update: New Desktop App Now Available
+
+After getting some amazing feedback from users of this little web app, I made a desktop app for Mac and Windows that has a ton of features, including auto sync, preserved handwritten notes, lots of custom options, minimize to system tray, and more!
+
+[Planneriffic - Calendar Sync for Remarkable Move](https://planneriffic.com)
+
+<br>
+<br>
+
 ## 🔒 Privacy First
 
 **Your data stays private:**
